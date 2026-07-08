@@ -1,6 +1,8 @@
 import { getTimeStamp } from "../utils"
 
 export interface ScrollMetrics {
+  success: boolean
+  error: string | null
   scrollHeight: number
   scrollTop: number
   clientHeight: number
@@ -12,7 +14,7 @@ export interface ScrollMetrics {
  */
 export async function getScrollMetrics(
   target: chrome.debugger.Debuggee,
-  containerSelector: string = ""
+  _containerSelector: string = ""
 ): Promise<ScrollMetrics> {
   console.log(getTimeStamp(), "[getScrollMetrics] : Getting scroll metrics")
 
@@ -22,25 +24,29 @@ export async function getScrollMetrics(
   // We check both documentElement and body to ensure cross-browser compatibility.
   expression = `
     (() => {
-     const container = document.querySelector('${containerSelector}');
-      const scrollHeight = Math.max(
-        document.documentElement.scrollHeight,
-        document.body.scrollHeight,
-        container.scrollHeight
-      );
-      const scrollTop = Math.max(
-        document.documentElement.scrollTop,
-        document.body.scrollTop,
-        container.scrollTop
-      );
-      const clientHeight = document.documentElement.clientHeight;
-          
+      const selector = 'main';
+      const container = selector ? document.querySelector(selector) : null;
+      if(!container) {
+        return {
+          success: false,
+          error: "Container not found",
+          scrollHeight: 0,
+          scrollTop: 0,
+          clientHeight: 0,
+          remainingSpace: 0
+        }
+      }
+      const scrollHeight = container.scrollHeight
+      const scrollTop = container.scrollTop
+      const clientHeight = container.clientHeight
       return {
+        success: true,
+        error: null,
         scrollHeight,
         scrollTop,
         clientHeight,
         remainingSpace: scrollHeight - (scrollTop + clientHeight)
-          };
+      };
     })();
     `
 
@@ -55,10 +61,22 @@ export async function getScrollMetrics(
     }
   )) as any
 
+  if (!result || !result.value) {
+    console.warn(
+      getTimeStamp(),
+      "[getScrollMetrics] : Runtime evaluation failed, returning default metrics.",
+      result?.exceptionDetails || "No result value"
+    )
+    throw new Error(
+      "Runtime evaluation failed for getScrollMetrics ",
+      result.value?.error
+    )
+  }
   console.log(
     getTimeStamp(),
     "[getScrollMetrics] : Scroll metrics retrieved : ",
-    result.value
+    result?.value
   )
+
   return result.value as ScrollMetrics
 }
