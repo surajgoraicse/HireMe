@@ -13,6 +13,16 @@ import {
   waitForNetworkIdle,
 } from "../helper-scripts/waitForNetworkIdle"
 
+export interface ScraperState {
+  status: "idle" | "scraping" | "paused" | "completed" | "failed"
+  tabId: number | null
+  keyword: string
+  timeFilter: TimeFilter
+  maxDepthPx: number
+  currentDepth: number
+  errorMessage?: string
+}
+
 const baseSearchAllUrl = new URL("https://www.linkedin.com/search/results/all/")
 const baseSearchPostUrl = new URL(
   "https://www.linkedin.com/search/results/content/"
@@ -73,7 +83,7 @@ async function navigateMultiStepLinkedinSearchPage(
   searchUrl.searchParams.set("keywords", searchKeyword)
   searchUrl.searchParams.set("origin", "SWITCH_SEARCH_VERTICAL")
   await chrome.debugger.sendCommand(target, "Page.navigate", {
-    url: searchUrl,
+    url: searchUrl.href,
   })
   console.log(getTimeStamp(), getTimeStamp(), "navigating to ", searchUrl.href)
   await waitForNetworkIdle({
@@ -136,33 +146,92 @@ export async function scrapeInfiniteSearchFeedLinkedin(
     // 1. Attach the debugger to our target tab using CDP version 1.3
     await chrome.debugger.attach(target, "1.3")
 
-    // 2. Direct URL Navigation (Bypassing UI clicks)
-    // We construct the LinkedIn Search URL for the Feed/Posts.
+    // Read the current state to check if we are resuming
+    const storedState = await chrome.storage.local.get([
+      "linkedin_scraper_state",
+    ])
+    const scraperState = (storedState.linkedin_scraper_state ||
+      {}) as Partial<ScraperState>
+
+    // Check if the saved configuration matches the current one and has progress
+    const isResuming =
+      scraperState.keyword === searchKeyword &&
+      scraperState.timeFilter === timeFilter &&
+      typeof scraperState.currentDepth === "number" &&
+      scraperState.currentDepth > 0 &&
+      scraperState.status === "paused"
+
+    const initialDepth =
+      isResuming && typeof scraperState.currentDepth === "number"
+        ? scraperState.currentDepth
+        : 0
+
+    // 2. Direct URL Navigation (Bypassing UI clicks) if starting fresh
     if (!timeFilterSchema.safeParse(timeFilter).success) {
       timeFilter = "default"
     }
 
     await chrome.debugger.sendCommand(target, "Page.enable")
-    await navigateMultiStepLinkedinSearchPage(target, searchKeyword, timeFilter)
 
-    console.log(
-      getTimeStamp(),
-      "[scrapeInfiniteSearchFeedLinkedin] : Waiting for network idle..."
-    )
-    await waitForNetworkIdle({
-      tabId: tabId,
-      idleTime: 500, // Wait for 0.5 second of total silence
-      timeout: 6000, // Give up if 6 seconds pass
+    if (!isResuming) {
+      await navigateMultiStepLinkedinSearchPage(
+        target,
+        searchKeyword,
+        timeFilter
+      )
+
+      console.log(
+        getTimeStamp(),
+        "[scrapeInfiniteSearchFeedLinkedin] : Waiting for network idle..."
+      )
+      await waitForNetworkIdle({
+        tabId: tabId,
+        idleTime: 500, // Wait for 0.5 second of total silence
+        timeout: 6000, // Give up if 6 seconds pass
+      })
+      console.log(
+        getTimeStamp(),
+        "[scrapeInfiniteSearchFeedLinkedin] : Network is idle. Ready to simulate scrolling."
+      )
+    } else {
+      console.log(
+        getTimeStamp(),
+        `[scrapeInfiniteSearchFeedLinkedin] : Resuming scroll from depth: ${initialDepth}px without re-navigating.`
+      )
+    }
+
+    // Set the state in storage as active
+    await chrome.storage.local.set({
+      linkedin_scraper_state: {
+        status: "scraping",
+        tabId,
+        keyword: searchKeyword,
+        timeFilter,
+        maxDepthPx,
+        currentDepth: initialDepth,
+      },
     })
-    console.log(
-      getTimeStamp(),
-      "[scrapeInfiniteSearchFeedLinkedin] : Network is idle. Ready to simulate scrolling."
-    )
 
     // 3. Human-Simulated Scrolling & Interaction loop
-    let currentDepth = 0
+    let currentDepth = initialDepth
+    let isPaused = false
 
     while (currentDepth < maxDepthPx) {
+      // Before each step, check if the status has changed (e.g., to "paused")
+      const currentStored = await chrome.storage.local.get([
+        "linkedin_scraper_state",
+      ])
+      const currentState = (currentStored.linkedin_scraper_state ||
+        {}) as Partial<ScraperState>
+      if (currentState.status !== "scraping") {
+        console.log(
+          getTimeStamp(),
+          `[scrapeInfiniteSearchFeedLinkedin] : Scraper paused or stopped by external command. Stopping loop at depth: ${currentDepth}px.`
+        )
+        isPaused = true
+        break
+      }
+
       // 1. Fetch real-time metrics before deciding to scroll
       const metrics = await getScrollMetrics(target)
 
@@ -191,6 +260,14 @@ export async function scrapeInfiniteSearchFeedLinkedin(
 
       currentDepth += scrollStep
 
+      // Update progress in chrome local storage
+      await chrome.storage.local.set({
+        linkedin_scraper_state: {
+          ...currentState,
+          currentDepth: currentDepth,
+        },
+      })
+
       // Add random jitter delay after scrolling down
       await infiniteScrollSleep(config)
 
@@ -201,16 +278,33 @@ export async function scrapeInfiniteSearchFeedLinkedin(
           getTimeStamp(),
           `[scrapeInfiniteSearchFeedLinkedin] : Decoy action: Scrolling up`
         )
-        await mouseScroll(
-          target,
-          -1 *
-            getRandomNumberInRange(config.minDecoyScroll, config.maxDecoyScroll)
+        const decoyScroll = getRandomNumberInRange(
+          config.minDecoyScroll,
+          config.maxDecoyScroll
         )
+        await mouseScroll(target, -1 * decoyScroll)
+        currentDepth = Math.max(0, currentDepth - decoyScroll)
+
+        await chrome.storage.local.set({
+          linkedin_scraper_state: {
+            ...currentState,
+            currentDepth: currentDepth,
+          },
+        })
+
         await sleep(
           config.minInfiniteDecoyScrollSleep,
           config.maxInfiniteDecoyScrollSleep
         )
       }
+    }
+
+    if (isPaused) {
+      console.log(
+        getTimeStamp(),
+        `[scrapeInfiniteSearchFeedLinkedin] : Exiting execution loop cleanly due to pause request.`
+      )
+      return
     }
 
     // 4. Extract DOM via Runtime.evaluate
@@ -221,6 +315,18 @@ export async function scrapeInfiniteSearchFeedLinkedin(
     // 5. Stream to S3 Storage
     await uploadToS3(rawHtml, searchKeyword)
     const finalMetrics = await getScrollMetrics(target)
+
+    const finalStored = await chrome.storage.local.get([
+      "linkedin_scraper_state",
+    ])
+    const finalState = (finalStored.linkedin_scraper_state ||
+      {}) as Partial<ScraperState>
+    await chrome.storage.local.set({
+      linkedin_scraper_state: {
+        ...finalState,
+        status: "completed",
+      },
+    })
 
     console.log(
       getTimeStamp(),
@@ -233,6 +339,19 @@ export async function scrapeInfiniteSearchFeedLinkedin(
       "[scrapeInfiniteSearchFeedLinkedin] : Debugger execution failed:",
       error
     )
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    const errorStored = await chrome.storage.local.get([
+      "linkedin_scraper_state",
+    ])
+    const errorState = (errorStored.linkedin_scraper_state ||
+      {}) as Partial<ScraperState>
+    await chrome.storage.local.set({
+      linkedin_scraper_state: {
+        ...errorState,
+        status: "failed",
+        errorMessage: errorMsg,
+      },
+    })
   } finally {
     // It is critical to detach the debugger to free up browser memory and reset tab state.
     await chrome.debugger.detach(target)
