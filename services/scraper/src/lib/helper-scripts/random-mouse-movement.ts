@@ -1,7 +1,6 @@
 // lib/mouse-simulator.ts
 
-import logger from "../logger"
-import { sleep } from "../utils"
+import { getTimeStamp, sleep } from "../utils"
 
 /**
  * Calculates a point on a cubic Bézier curve based on progression t (0 to 1).
@@ -67,7 +66,8 @@ export async function simulateHumanMovement(
   startX: number,
   startY: number
 ) {
-  logger.info(
+  console.log(
+    getTimeStamp(),
     `[simulateHumanMovement ${Date.now().toLocaleString()}] : Simulating human movement from (${startX}, ${startY})`
   )
 
@@ -134,5 +134,8 @@ export async function simulateHumanMovement(
       await sleep(200, 600)
     }
   }
-  logger.info("[simulateHumanMovement] : Human movement simulation completed")
+  console.log(
+    getTimeStamp(),
+    "[simulateHumanMovement] : Human movement simulation completed"
+  )
 }

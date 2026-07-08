@@ -1,7 +1,7 @@
 import { config } from "@/lib/config"
 import { waitForNetworkIdle } from "@/lib/helper-scripts/waitForNetworkIdle"
-import logger from "@/lib/logger"
 import { scrapeInfiniteSearchFeedLinkedin } from "@/lib/scripts/scrap-infinite-linkedin"
+import { getTimeStamp } from "@/lib/utils"
 
 // Set panel behavior to open on action click
 if (
@@ -14,7 +14,7 @@ if (
     .catch((error) => console.error(error))
 }
 
-console.log("Background service worker loaded")
+console.log(getTimeStamp(), "Background service worker loaded")
 
 /**
  * This is used for scraping the linkedin infinite search feed.
@@ -33,9 +33,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     chrome.tabs.create({ url: "https://www.linkedin.com" }, async (tab) => {
       if (tab.id) {
         try {
-          logger.info("Waiting for network idle")
+          console.log(getTimeStamp(), "Waiting for network idle")
           await waitForNetworkIdle({ tabId: tab.id, timeout: 10000 })
-          logger.info("Network is now idle")
+          console.log(getTimeStamp(), "Network is now idle")
           scrapeInfiniteSearchFeedLinkedin(
             tab.id,
             message.keyword,
@@ -44,7 +44,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             message.maxDepthPx
           )
         } catch (error) {
-          logger.error("Scrapping Failed error:", error)
+          console.error("Scrapping Failed error:", error)
           sendResponse({ status: "Scrapping Failed", error: error })
         }
       }

@@ -6,19 +6,28 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "./components/ui/button"
+import { getTimeStamp } from "./lib/utils"
 
 async function scrapeLinkedinInfiniteSearchFeed() {
   try {
-    console.log("Scraping linkedin infinite search feed")
+    console.log(getTimeStamp(), "Scraping linkedin infinite search feed")
     const res = await chrome.runtime.sendMessage({
       action: "SCRAPE_LINKEDIN_INFINITE_SEARCH_FEED",
       keyword: "hiring software engineer",
       timeFilter: "1D",
       maxDepthPx: 5000,
     })
-    console.log("Scraping linkedin infinite search feed result", res)
+    console.log(
+      getTimeStamp(),
+      "Scraping linkedin infinite search feed result",
+      res
+    )
   } catch (error) {
-    console.log("Error scraping linkedin infinite search feed", error)
+    console.log(
+      getTimeStamp(),
+      "Error scraping linkedin infinite search feed",
+      error
+    )
   }
 }
 

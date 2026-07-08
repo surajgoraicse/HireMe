@@ -1,6 +1,6 @@
 import { timeFilterSchema, type TimeFilter } from "@/lib/types/types"
 import { uploadToS3 } from "@/lib/uploadToS3"
-import { getRandomNumberInRange, sleep } from "@/lib/utils"
+import { getRandomNumberInRange, getTimeStamp, sleep } from "@/lib/utils"
 import * as zod from "zod"
 import type { Config } from "../config"
 import { getScrollMetrics } from "../helper-scripts/domMetrics"
@@ -12,9 +12,11 @@ import {
   waitForInfinitePageLoadDuringScroll,
   waitForNetworkIdle,
 } from "../helper-scripts/waitForNetworkIdle"
-import logger from "../logger"
 
-const baseUrl = new URL("https://www.linkedin.com/search/results/content/")
+const baseSearchAllUrl = new URL("https://www.linkedin.com/search/results/all/")
+const baseSearchPostUrl = new URL(
+  "https://www.linkedin.com/search/results/content/"
+)
 const timeFilterMap = {
   "1D": `["past-24h"]`,
   "1W": `["past-week"]`,
@@ -27,15 +29,83 @@ const timeFilterMap = {
  * @param timeFilter - The time filter to use
  * @returns The search URL
  */
-function getSearchUrl(searchKeyword: string, timeFilter: TimeFilter) {
-  const searchUrl = baseUrl
+// function getSearchUrl(searchKeyword: string, timeFilter: TimeFilter) {
+//   const searchUrl = baseSearchPostUrl
+//   searchUrl.searchParams.set("keywords", searchKeyword)
+//   searchUrl.searchParams.set("origin", "SWITCH_SEARCH_VERTICAL")
+//   if (timeFilter !== "default") {
+//     searchUrl.searchParams.set("datePosted", timeFilterMap[timeFilter])
+//     searchUrl.searchParams.set("origin", "FACETED_SEARCH")
+//   }
+//   return searchUrl
+// }
+
+/**
+ * Navigates to the multi-step linkedin search page
+ * This mimics human behavior of navigating to the search page and applying the time filter
+ * @param target - The target to navigate to
+ * @param searchKeyword - The keyword to search for
+ * @param timeFilter - The time filter to use
+ * @returns void
+ */
+async function navigateMultiStepLinkedinSearchPage(
+  target: { tabId: number },
+  searchKeyword: string,
+  timeFilter: TimeFilter
+) {
+  // step 1 : navigating to the search all page
+  let searchUrl = baseSearchAllUrl
+  searchUrl.searchParams.set("keywords", searchKeyword)
+  searchUrl.searchParams.set("origin", "GLOBAL_SEARCH_HEADER")
+  await chrome.debugger.sendCommand(target, "Page.navigate", {
+    url: searchUrl.href,
+  })
+  console.log(getTimeStamp(), getTimeStamp(), "navigating to ", searchUrl.href)
+  await waitForNetworkIdle({
+    tabId: target.tabId,
+    timeout: 4000,
+    idleTime: 1000,
+  })
+  console.log(getTimeStamp(), getTimeStamp(), "network is idle")
+
+  // step 2 : navigating to search post page
+  searchUrl = baseSearchPostUrl
   searchUrl.searchParams.set("keywords", searchKeyword)
   searchUrl.searchParams.set("origin", "SWITCH_SEARCH_VERTICAL")
-  if (timeFilter !== "default") {
-    searchUrl.searchParams.set("datePosted", timeFilterMap[timeFilter])
-    searchUrl.searchParams.set("origin", "FACETED_SEARCH")
+  await chrome.debugger.sendCommand(target, "Page.navigate", {
+    url: searchUrl,
+  })
+  console.log(getTimeStamp(), getTimeStamp(), "navigating to ", searchUrl.href)
+  await waitForNetworkIdle({
+    tabId: target.tabId,
+    timeout: 4000,
+    idleTime: 1000,
+  })
+  console.log(getTimeStamp(), getTimeStamp(), "network is idle")
+  if (timeFilter === "default") {
+    return
   }
-  return searchUrl.href
+
+  // step 3 : applying the time filter in post page
+  searchUrl = baseSearchPostUrl
+  searchUrl.searchParams.set("keywords", searchKeyword)
+  searchUrl.searchParams.set("datePosted", timeFilterMap[timeFilter])
+  searchUrl.searchParams.set("origin", "FACETED_SEARCH")
+  await chrome.debugger.sendCommand(target, "Page.navigate", {
+    url: searchUrl.href,
+  })
+  console.log(getTimeStamp(), getTimeStamp(), "navigating to ", searchUrl.href)
+  await waitForNetworkIdle({
+    tabId: target.tabId,
+    timeout: 4000,
+    idleTime: 1000,
+  })
+  console.log(getTimeStamp(), getTimeStamp(), "network is idle")
+  console.log(
+    getTimeStamp(),
+    "successfully applied the time filter and the url is ",
+    searchUrl.href
+  )
 }
 
 /**
@@ -58,7 +128,7 @@ export async function scrapeInfiniteSearchFeedLinkedin(
 
   // validate maxDepthPx
   if (!zod.number().safeParse(maxDepthPx).success) {
-    logger.error("maxDepthPx must be a number")
+    console.error("maxDepthPx must be a number")
     maxDepthPx = 40000
   }
 
@@ -71,22 +141,21 @@ export async function scrapeInfiniteSearchFeedLinkedin(
     if (!timeFilterSchema.safeParse(timeFilter).success) {
       timeFilter = "default"
     }
-    const searchUrl = getSearchUrl(searchKeyword, timeFilter)
 
     await chrome.debugger.sendCommand(target, "Page.enable")
-    await chrome.debugger.sendCommand(target, "Page.navigate", {
-      url: searchUrl,
-    })
+    await navigateMultiStepLinkedinSearchPage(target, searchKeyword, timeFilter)
 
-    logger.info(
+    console.log(
+      getTimeStamp(),
       "[scrapeInfiniteSearchFeedLinkedin] : Waiting for network idle..."
     )
     await waitForNetworkIdle({
       tabId: tabId,
       idleTime: 500, // Wait for 0.5 second of total silence
-      timeout: 10000, // Give up if 10 seconds pass
+      timeout: 6000, // Give up if 6 seconds pass
     })
-    logger.info(
+    console.log(
+      getTimeStamp(),
       "[scrapeInfiniteSearchFeedLinkedin] : Network is idle. Ready to simulate scrolling."
     )
 
@@ -128,7 +197,8 @@ export async function scrapeInfiniteSearchFeedLinkedin(
       // Decoy action: Randomly scroll up slightly
       // Example: A user scrolling past a post, realizing it was interesting, and scrolling slightly back up.
       if (Math.random() > 0.8) {
-        logger.info(
+        console.log(
+          getTimeStamp(),
           `[scrapeInfiniteSearchFeedLinkedin] : Decoy action: Scrolling up`
         )
         await mouseScroll(
@@ -150,19 +220,24 @@ export async function scrapeInfiniteSearchFeedLinkedin(
 
     // 5. Stream to S3 Storage
     await uploadToS3(rawHtml, searchKeyword)
+    const finalMetrics = await getScrollMetrics(target)
 
-    logger.info(
-      "[scrapeInfiniteSearchFeedLinkedin] : Scraping task completed successfully."
+    console.log(
+      getTimeStamp(),
+      "[scrapeInfiniteSearchFeedLinkedin] : Scraping task completed successfully.\n",
+      "Final metrics: ",
+      finalMetrics
     )
   } catch (error) {
-    logger.error(
+    console.error(
       "[scrapeInfiniteSearchFeedLinkedin] : Debugger execution failed:",
       error
     )
   } finally {
     // It is critical to detach the debugger to free up browser memory and reset tab state.
     await chrome.debugger.detach(target)
-    logger.info(
+    console.log(
+      getTimeStamp(),
       "[scrapeInfiniteSearchFeedLinkedin] : Debugger detached from the target tab."
     )
   }

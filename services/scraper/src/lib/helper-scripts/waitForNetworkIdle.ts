@@ -1,9 +1,9 @@
 // src/lib/network.ts
 
 import { IgnoreNetworkIdleUrls } from "@/lib/constants"
-import logger from "../logger"
 import { type ScrollMetrics } from "./domMetrics"
 import { mouseScroll } from "./mouseScroll"
+import { getTimeStamp } from "../utils"
 
 export interface NetworkIdleOptions {
   tabId: number
@@ -135,7 +135,8 @@ export async function waitForInfinitePageLoadDuringScroll(
   // Example: If we have less than 800px of scrollable space left,
   // it means we are near the bottom. LinkedIn's infinite scroll should be triggering.
   if (metrics.remainingSpace < minRemainingSpace) {
-    logger.info(
+    console.log(
+      getTimeStamp(),
       "[waitForInfinitePageLoadDuringScroll] : Approaching the bottom of the rendered DOM. Waiting for hydration..."
     )
 
@@ -146,11 +147,12 @@ export async function waitForInfinitePageLoadDuringScroll(
         tabId: target.tabId!,
         timeout: waitingTimeout,
       })
-      logger.info(
+      console.log(
+        getTimeStamp(),
         "[waitForInfinitePageLoadDuringScroll] : Hydration complete. Continuing scroll."
       )
     } catch (e) {
-      logger.warn(
+      console.warn(
         "[waitForInfinitePageLoadDuringScroll] : Hydration timeout or network remained noisy, continuing anyway."
       )
     }
