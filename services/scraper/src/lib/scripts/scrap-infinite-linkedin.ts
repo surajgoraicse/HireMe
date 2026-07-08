@@ -70,13 +70,22 @@ async function navigateMultiStepLinkedinSearchPage(
   await chrome.debugger.sendCommand(target, "Page.navigate", {
     url: searchUrl.href,
   })
-  console.log(getTimeStamp(), getTimeStamp(), "navigating to ", searchUrl.href)
-  await waitForNetworkIdle({
-    tabId: target.tabId,
-    timeout: 4000,
-    idleTime: 1000,
-  })
-  console.log(getTimeStamp(), getTimeStamp(), "network is idle")
+  try {
+    console.log(
+      getTimeStamp(),
+      getTimeStamp(),
+      "navigating to ",
+      searchUrl.href
+    )
+    await waitForNetworkIdle({
+      tabId: target.tabId,
+      timeout: 4000,
+      idleTime: 1000,
+    })
+    console.log(getTimeStamp(), getTimeStamp(), "network is idle")
+  } catch (error: any) {
+    console.error(getTimeStamp(), "timeout exceeded", error.message)
+  }
 
   // step 2 : navigating to search post page
   searchUrl = baseSearchPostUrl
@@ -86,12 +95,16 @@ async function navigateMultiStepLinkedinSearchPage(
     url: searchUrl.href,
   })
   console.log(getTimeStamp(), getTimeStamp(), "navigating to ", searchUrl.href)
-  await waitForNetworkIdle({
-    tabId: target.tabId,
-    timeout: 4000,
-    idleTime: 1000,
-  })
-  console.log(getTimeStamp(), getTimeStamp(), "network is idle")
+  try {
+    await waitForNetworkIdle({
+      tabId: target.tabId,
+      timeout: 4000,
+      idleTime: 1000,
+    })
+    console.log(getTimeStamp(), getTimeStamp(), "network is idle")
+  } catch (error: any) {
+    console.error(getTimeStamp(), "timeout exceeded", error.message)
+  }
   if (timeFilter === "default") {
     return
   }
@@ -105,12 +118,16 @@ async function navigateMultiStepLinkedinSearchPage(
     url: searchUrl.href,
   })
   console.log(getTimeStamp(), getTimeStamp(), "navigating to ", searchUrl.href)
-  await waitForNetworkIdle({
-    tabId: target.tabId,
-    timeout: 4000,
-    idleTime: 1000,
-  })
-  console.log(getTimeStamp(), getTimeStamp(), "network is idle")
+  try {
+    await waitForNetworkIdle({
+      tabId: target.tabId,
+      timeout: 4000,
+      idleTime: 1000,
+    })
+    console.log(getTimeStamp(), getTimeStamp(), "network is idle")
+  } catch (error: any) {
+    console.error(getTimeStamp(), "timeout exceeded", error.message)
+  }
   console.log(
     getTimeStamp(),
     "successfully applied the time filter and the url is ",
@@ -172,6 +189,7 @@ export async function scrapeInfiniteSearchFeedLinkedin(
     }
 
     await chrome.debugger.sendCommand(target, "Page.enable")
+    await chrome.debugger.sendCommand(target, "Network.enable")
 
     if (!isResuming) {
       await navigateMultiStepLinkedinSearchPage(
@@ -180,19 +198,23 @@ export async function scrapeInfiniteSearchFeedLinkedin(
         timeFilter
       )
 
-      console.log(
-        getTimeStamp(),
-        "[scrapeInfiniteSearchFeedLinkedin] : Waiting for network idle..."
-      )
-      await waitForNetworkIdle({
-        tabId: tabId,
-        idleTime: 500, // Wait for 0.5 second of total silence
-        timeout: 6000, // Give up if 6 seconds pass
-      })
-      console.log(
-        getTimeStamp(),
-        "[scrapeInfiniteSearchFeedLinkedin] : Network is idle. Ready to simulate scrolling."
-      )
+      try {
+        console.log(
+          getTimeStamp(),
+          "[scrapeInfiniteSearchFeedLinkedin] : Waiting for network idle..."
+        )
+        await waitForNetworkIdle({
+          tabId: tabId,
+          idleTime: 500, // Wait for 0.5 second of total silence
+          timeout: 6000, // Give up if 6 seconds pass
+        })
+        console.log(
+          getTimeStamp(),
+          "[scrapeInfiniteSearchFeedLinkedin] : Network is idle. Ready to simulate scrolling."
+        )
+      } catch (error: any) {
+        console.error(getTimeStamp(), "timeout exceeded", error.message)
+      }
     } else {
       console.log(
         getTimeStamp(),
@@ -233,7 +255,10 @@ export async function scrapeInfiniteSearchFeedLinkedin(
       }
 
       // 1. Fetch real-time metrics before deciding to scroll
-      const metrics = await getScrollMetrics(target)
+      const metrics = await getScrollMetrics(
+        target,
+        config.targetLinkedinInfiniteScrollableSelector
+      )
 
       // Example: If we have less than 800px of scrollable space left,
       // it means we are near the bottom. LinkedIn's infinite scroll should be triggering.
@@ -314,7 +339,10 @@ export async function scrapeInfiniteSearchFeedLinkedin(
 
     // 5. Stream to S3 Storage
     await uploadToS3(rawHtml, searchKeyword)
-    const finalMetrics = await getScrollMetrics(target)
+    const finalMetrics = await getScrollMetrics(
+      target,
+      config.targetLinkedinInfiniteScrollableSelector
+    )
 
     const finalStored = await chrome.storage.local.get([
       "linkedin_scraper_state",

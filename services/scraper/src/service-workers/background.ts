@@ -108,11 +108,15 @@ async function handleStartScrape(
               getTimeStamp(),
               `Waiting for network idle on tab ${tab.id}`
             )
-            await waitForNetworkIdle({ tabId: tab.id, timeout: 10000 })
-            console.log(
-              getTimeStamp(),
-              "Network is idle, beginning scraping loop"
-            )
+            try {
+              await waitForNetworkIdle({ tabId: tab.id, timeout: 10000 })
+              console.log(
+                getTimeStamp(),
+                "Network is idle, beginning scraping loop"
+              )
+            } catch (error: any) {
+              console.log(getTimeStamp(), "timeout exceeded", error.message)
+            }
             scrapeInfiniteSearchFeedLinkedin(
               tab.id,
               keyword,
