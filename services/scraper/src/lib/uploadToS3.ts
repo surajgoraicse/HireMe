@@ -1,6 +1,6 @@
 export async function uploadToS3(
-  content: string,
-  type: string
+  _content: string,
+  _type: string
 ): Promise<string> {
   return "success"
 }

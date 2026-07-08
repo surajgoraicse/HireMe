@@ -1,4 +1,5 @@
 export interface Config {
+  logLevel: string
   minScroll: number
   maxScroll: number
   minDecoyScroll: number
@@ -31,8 +32,9 @@ function getEnvNumberOrDefault(env: string, defaultVal: number = 0) {
   return Number(import.meta.env[env]) || defaultVal
 }
 
-export function loadConfig(): Config {
+function loadConfig(): Config {
   return {
+    logLevel: getEnvOrDefault("LOG_LEVEL", "info"),
     minScroll: getEnvNumberOrDefault("MIN_SCROLL", 800),
     maxScroll: getEnvNumberOrDefault("MAX_SCROLL", 1500),
     minDecoyScroll: getEnvNumberOrDefault("MIN_DECOY_SCROLL", 400),
@@ -67,3 +69,4 @@ export function loadConfig(): Config {
     ),
   }
 }
+export const config = loadConfig()

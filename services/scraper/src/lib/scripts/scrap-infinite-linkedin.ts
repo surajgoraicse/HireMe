@@ -1,4 +1,3 @@
-import { config } from "@/App"
 import type { TIME_FILTER } from "@/lib/types"
 import { uploadToS3 } from "@/lib/uploadToS3"
 import { getRandomNumberInRange, sleep } from "@/lib/utils"
@@ -33,7 +32,6 @@ function getSearchUrl(searchKeyword: string, timeFilter: TIME_FILTER) {
   }
   return searchUrl.href
 }
-
 
 /**
  * Main function that executes the hybrid scraping strategy using chrome.debugger
@@ -133,4 +131,3 @@ export async function scrapeInfiniteSearchFeedLinkedin(
     await chrome.debugger.detach(target)
   }
 }
-

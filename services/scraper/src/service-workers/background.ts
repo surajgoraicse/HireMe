@@ -1,11 +1,18 @@
-import { config } from "@/App"
+import { config } from "@/lib/config"
 import { waitForNetworkIdle } from "@/lib/helper-scripts/waitForNetworkIdle"
+import logger from "@/lib/logger"
 import { scrapeInfiniteSearchFeedLinkedin } from "@/lib/scripts/scrap-infinite-linkedin"
 
 // Set panel behavior to open on action click
-chrome.sidePanel
-  .setPanelBehavior({ openPanelOnActionClick: true })
-  .catch((error) => console.error(error))
+if (
+  typeof chrome !== "undefined" &&
+  chrome.sidePanel &&
+  typeof chrome.sidePanel.setPanelBehavior === "function"
+) {
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+    .catch((error) => console.error(error))
+}
 
 console.log("Background service worker loaded")
 
@@ -25,7 +32,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     chrome.tabs.create({ url: "https://www.linkedin.com" }, async (tab) => {
       if (tab.id) {
         try {
+          logger.info("Waiting for network idle")
           await waitForNetworkIdle({ tabId: tab.id, timeout: 10000 })
+          logger.info("Network is now idle")
           scrapeInfiniteSearchFeedLinkedin(
             tab.id,
             message.keyword,
@@ -34,7 +43,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             message.maxDepthPx
           )
         } catch (error) {
-          console.error("Scrapping Failed error:", error)
+          logger.error("Scrapping Failed error:", error)
           sendResponse({ status: "Scrapping Failed", error: error })
         }
       }

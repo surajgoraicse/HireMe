@@ -6,9 +6,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "./components/ui/button"
-import { loadConfig } from "./lib/config"
-
-export const config = loadConfig()
 
 async function scrapeLinkedinInfiniteSearchFeed() {
   try {
