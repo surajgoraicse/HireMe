@@ -5,6 +5,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { loadConfig } from "./lib/config"
+
+export const config = loadConfig()
 
 function App() {
   return (

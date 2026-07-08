@@ -16,3 +16,10 @@ export const sleep = (min: number, max: number) =>
 
 export const getRandomNumberInRange = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min
+
+export function getSafeViewports(): [number, number] {
+  return [
+    500 + getRandomNumberInRange(-100, 100),
+    500 + getRandomNumberInRange(-100, 100),
+  ]
+}

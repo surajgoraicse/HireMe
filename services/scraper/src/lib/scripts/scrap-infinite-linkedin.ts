@@ -1,8 +1,17 @@
+import { config } from "@/App"
 import type { TIME_FILTER } from "@/lib/types"
 import { uploadToS3 } from "@/lib/uploadToS3"
-import { sleep } from "@/lib/utils"
-import { waitForNetworkIdle } from "../../service-workers/utils/waitForNetworkIdle"
-import { simulateHumanMovement } from "./random-mouse-movement"
+import { getRandomNumberInRange, sleep } from "@/lib/utils"
+import type { Config } from "../config"
+import { getScrollMetrics } from "../helper-scripts/domMetrics"
+import { extractDOM } from "../helper-scripts/extractDOM"
+import { mouseScroll } from "../helper-scripts/mouseScroll"
+import { simulateHumanMovement } from "../helper-scripts/random-mouse-movement"
+import {
+  waitForInfinitePageLoadDuringScroll,
+  waitForNetworkIdle,
+} from "../helper-scripts/waitForNetworkIdle"
+import { infiniteScrollSleep } from "../helper-scripts/sleep"
 
 const baseUrl = new URL("https://www.linkedin.com/search/results/content/")
 const timeFilterMap = {
@@ -25,6 +34,8 @@ function getSearchUrl(searchKeyword: string, timeFilter: TIME_FILTER) {
   return searchUrl.href
 }
 
+
+
 /**
  * Main function that executes the hybrid scraping strategy using chrome.debugger
  */
@@ -32,6 +43,7 @@ export async function scrapeInfiniteSearchFeedLinkedin(
   tabId: number,
   searchKeyword: string,
   timeFilter: TIME_FILTER = "default",
+  config: Config,
   maxDepthPx: number
 ) {
   const target = { tabId }
@@ -53,7 +65,7 @@ export async function scrapeInfiniteSearchFeedLinkedin(
     await waitForNetworkIdle({
       tabId: tabId,
       idleTime: 500, // Wait for 1 second of total silence
-      timeout: 10000, // Give up if 20 seconds pass
+      timeout: 10000, // Give up if 10 seconds pass
     })
     console.log("Network is idle. Ready to simulate scrolling.")
 
@@ -61,6 +73,13 @@ export async function scrapeInfiniteSearchFeedLinkedin(
     let currentDepth = 0
 
     while (currentDepth < maxDepthPx) {
+      // 1. Fetch real-time metrics before deciding to scroll
+      const metrics = await getScrollMetrics(target)
+
+      // Example: If we have less than 800px of scrollable space left,
+      // it means we are near the bottom. LinkedIn's infinite scroll should be triggering.
+      await waitForInfinitePageLoadDuringScroll(target, metrics, 800, 4000)
+
       // Simulate random mouse movement before scrolling to mimic a human reading
       if (Math.random() > 0.8) {
         await simulateHumanMovement(
@@ -71,50 +90,38 @@ export async function scrapeInfiniteSearchFeedLinkedin(
       }
 
       // Determine a variable scroll amount for this specific tick
-      const scrollStep = Math.floor(Math.random() * 400) + 200 // Between 200px and 600px
+      const scrollStep = getRandomNumberInRange(
+        config.minScroll,
+        config.maxScroll
+      )
 
       // Execute the scroll via mouseWheel
       // We pass the deltaY parameter in CSS pixels to dictate the vertical scroll distance.
-      await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", {
-        type: "mouseWheel",
-        x: 500, // Simulated cursor locked near the center of the screen
-        y: 500, // Simulated cursor locked near the center of the screen
-        deltaX: 0,
-        deltaY: scrollStep,
-      })
+      await mouseScroll(target, scrollStep)
 
       currentDepth += scrollStep
 
       // Add random jitter delay after scrolling down
-      await sleep(1500, 4000)
+      await infiniteScrollSleep(config)
 
       // Decoy action: Randomly scroll up slightly
       // Example: A user scrolling past a post, realizing it was interesting, and scrolling slightly back up.
-      if (Math.random() > 0.7) {
-        await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", {
-          type: "mouseWheel",
-          x: 500,
-          y: 500,
-          deltaX: 0,
-          deltaY: -150,
-        })
-        await sleep(1000, 2000)
+      if (Math.random() > 0.8) {
+        await mouseScroll(
+          target,
+          getRandomNumberInRange(config.minDecoyScroll, config.maxDecoyScroll)
+        )
+        await sleep(
+          config.minInfiniteDecoyScrollSleep,
+          config.maxInfiniteDecoyScrollSleep
+        )
       }
     }
 
     // 4. Extract DOM via Runtime.evaluate
     // This executes JS directly in the V8 engine, returning the fully hydrated outerHTML
     // without needing to inject content scripts or parse complex DOM node IDs.
-    const { result } = (await chrome.debugger.sendCommand(
-      target,
-      "Runtime.evaluate",
-      {
-        expression: "document.documentElement.outerHTML",
-        returnByValue: true,
-      }
-    )) as any
-
-    const rawHtml = result.value
+    const rawHtml = await extractDOM(target)
 
     // 5. Stream to S3 Storage
     await uploadToS3(rawHtml, searchKeyword)
@@ -149,6 +156,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             tab.id,
             message.keyword,
             message.timeFilter || "default",
+            config,
             message.maxDepthPx
           )
         } catch (error) {
