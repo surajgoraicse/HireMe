@@ -7,11 +7,11 @@ import { getScrollMetrics } from "../helper-scripts/domMetrics"
 import { extractDOM } from "../helper-scripts/extractDOM"
 import { mouseScroll } from "../helper-scripts/mouseScroll"
 import { simulateHumanMovement } from "../helper-scripts/random-mouse-movement"
+import { infiniteScrollSleep } from "../helper-scripts/sleep"
 import {
   waitForInfinitePageLoadDuringScroll,
   waitForNetworkIdle,
 } from "../helper-scripts/waitForNetworkIdle"
-import { infiniteScrollSleep } from "../helper-scripts/sleep"
 
 const baseUrl = new URL("https://www.linkedin.com/search/results/content/")
 const timeFilterMap = {
@@ -33,7 +33,6 @@ function getSearchUrl(searchKeyword: string, timeFilter: TIME_FILTER) {
   }
   return searchUrl.href
 }
-
 
 
 /**

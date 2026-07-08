@@ -9,6 +9,7 @@ export interface Config {
   maxInfiniteScrollLongSleep: number
   minInfiniteDecoyScrollSleep: number
   maxInfiniteDecoyScrollSleep: number
+  targetLinkedinInfiniteScrollableSelector: string
 }
 
 // function getEnv(env: string) {
@@ -22,9 +23,9 @@ export interface Config {
 //   return Number(envVal)
 // }
 
-// function getEnvOrDefault(env: string, defaultVal: string = "") {
-//   return process.env[env] || defaultVal
-// }
+function getEnvOrDefault(env: string, defaultVal: string = "") {
+  return process.env[env] || defaultVal
+}
 
 function getEnvNumberOrDefault(env: string, defaultVal: number = 0) {
   return Number(process.env[env]) || defaultVal
@@ -59,6 +60,10 @@ export function loadConfig(): Config {
     maxInfiniteDecoyScrollSleep: getEnvNumberOrDefault(
       "MAX_INFINITE_DECOY_SCROLL_SLEEP",
       3000
+    ),
+    targetLinkedinInfiniteScrollableSelector: getEnvOrDefault(
+      "TARGET_LINKEDIN_INFINITE_SCROLLABLE_SELECTOR",
+      ""
     ),
   }
 }
