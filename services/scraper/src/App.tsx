@@ -12,8 +12,9 @@ async function scrapeLinkedinInfiniteSearchFeed() {
     console.log("Scraping linkedin infinite search feed")
     const res = await chrome.runtime.sendMessage({
       action: "SCRAPE_LINKEDIN_INFINITE_SEARCH_FEED",
-      keyword: "software engineer",
-      maxDepthPx: 40000,
+      keyword: "hiring software engineer",
+      timeFilter: "1D",
+      maxDepthPx: 5000,
     })
     console.log("Scraping linkedin infinite search feed result", res)
   } catch (error) {

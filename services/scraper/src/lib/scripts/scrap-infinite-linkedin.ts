@@ -1,6 +1,7 @@
-import type { TIME_FILTER } from "@/lib/types"
+import { timeFilterSchema, type TimeFilter } from "@/lib/types/types"
 import { uploadToS3 } from "@/lib/uploadToS3"
 import { getRandomNumberInRange, sleep } from "@/lib/utils"
+import * as zod from "zod"
 import type { Config } from "../config"
 import { getScrollMetrics } from "../helper-scripts/domMetrics"
 import { extractDOM } from "../helper-scripts/extractDOM"
@@ -20,7 +21,7 @@ const timeFilterMap = {
   "1M": `["past-month"]`,
 }
 
-function getSearchUrl(searchKeyword: string, timeFilter: TIME_FILTER) {
+function getSearchUrl(searchKeyword: string, timeFilter: TimeFilter) {
   const searchUrl = baseUrl
   searchUrl.searchParams.set("keywords", encodeURIComponent(searchKeyword))
   searchUrl.searchParams.set("origin", "SWITCH_SEARCH_VERTICAL")
@@ -40,11 +41,17 @@ function getSearchUrl(searchKeyword: string, timeFilter: TIME_FILTER) {
 export async function scrapeInfiniteSearchFeedLinkedin(
   tabId: number,
   searchKeyword: string,
-  timeFilter: TIME_FILTER = "default",
+  timeFilter: TimeFilter = "default",
   config: Config,
-  maxDepthPx: number
+  maxDepthPx: number = 40000
 ) {
   const target = { tabId }
+
+  // validate maxDepthPx
+  if (!zod.number().safeParse(maxDepthPx).success) {
+    logger.error("maxDepthPx must be a number")
+    maxDepthPx = 40000
+  }
 
   try {
     // 1. Attach the debugger to our target tab using CDP version 1.3
@@ -52,6 +59,9 @@ export async function scrapeInfiniteSearchFeedLinkedin(
 
     // 2. Direct URL Navigation (Bypassing UI clicks)
     // We construct the LinkedIn Search URL for the Feed/Posts.
+    if (!timeFilterSchema.safeParse(timeFilter).success) {
+      timeFilter = "default"
+    }
     const searchUrl = getSearchUrl(searchKeyword, timeFilter)
 
     await chrome.debugger.sendCommand(target, "Page.enable")

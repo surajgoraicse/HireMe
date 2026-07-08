@@ -17,6 +17,7 @@ if (
 console.log("Background service worker loaded")
 
 /**
+ * This is used for scraping the linkedin infinite search feed.
  * Listener that acts as the entry point for commands coming from our Scheduler/Dashboard.
  */
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
