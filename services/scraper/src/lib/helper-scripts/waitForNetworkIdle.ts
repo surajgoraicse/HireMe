@@ -18,7 +18,7 @@ export interface NetworkIdleOptions {
 export async function waitForNetworkIdle({
   tabId,
   idleTime = 1000,
-  timeout = 30000,
+  timeout = 10000,
   ignoreUrls = [],
 }: NetworkIdleOptions): Promise<void> {
   return new Promise((resolve, reject) => {

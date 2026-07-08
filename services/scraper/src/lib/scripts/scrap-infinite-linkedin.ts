@@ -79,7 +79,7 @@ async function navigateMultiStepLinkedinSearchPage(
     )
     await waitForNetworkIdle({
       tabId: target.tabId,
-      timeout: 4000,
+      timeout: 5000,
       idleTime: 1000,
     })
     console.log(getTimeStamp(), getTimeStamp(), "network is idle")

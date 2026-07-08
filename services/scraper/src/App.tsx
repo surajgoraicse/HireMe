@@ -146,8 +146,8 @@ function App() {
   const isPaused = scraperState?.status === "paused"
 
   return (
-    <Card className="w-[380px] overflow-hidden border border-zinc-200 font-sans shadow-xl">
-      <CardHeader className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 p-5 text-white">
+    <Card className="w-95 overflow-hidden border border-zinc-200 font-sans shadow-xl">
+      <CardHeader className="bg-linear-to-r from-indigo-600 via-purple-600 to-indigo-700 p-5 text-white">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-lg font-bold tracking-tight">
@@ -187,7 +187,7 @@ function App() {
                 disabled={isScraping}
                 value={timeFilter}
                 onChange={(e) => setTimeFilter(e.target.value)}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:bg-zinc-50"
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:bg-zinc-50 text-black"
               >
                 <option value="default">Default</option>
                 <option value="1D">Past 24 Hours</option>
@@ -232,7 +232,7 @@ function App() {
             </div>
 
             {scraperState.errorMessage && (
-              <div className="mt-2 rounded bg-red-50 p-2 text-xs break-words text-red-500">
+              <div className="mt-2 rounded bg-red-50 p-2 text-xs wrap-break-word text-red-500">
                 <strong>Error:</strong> {scraperState.errorMessage}
               </div>
             )}
