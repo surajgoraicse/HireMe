@@ -24,11 +24,11 @@ export interface Config {
 // }
 
 function getEnvOrDefault(env: string, defaultVal: string = "") {
-  return process.env[env] || defaultVal
+  return import.meta.env[env] || defaultVal
 }
 
 function getEnvNumberOrDefault(env: string, defaultVal: number = 0) {
-  return Number(process.env[env]) || defaultVal
+  return Number(import.meta.env[env]) || defaultVal
 }
 
 export function loadConfig(): Config {

@@ -1,3 +1,4 @@
+import { getRandomNumberInRange } from "../utils"
 import { getScrollableContainerBounds } from "./getInfiniteScrollableContainer"
 
 /**
@@ -24,8 +25,9 @@ export async function mouseScroll(
   const safeYMax = Math.max(bounds.y + bounds.height * 0.8, 200) // Keep cursor in upper half of screen
 
   // 3. Generate randomized coordinates within the safe zone
-  const randomX = Math.floor(Math.random() * (safeXMax - safeXMin)) + safeXMin
-  const randomY = Math.floor(Math.random() * (safeYMax - safeYMin)) + safeYMin
+
+  const randomX = getRandomNumberInRange(safeXMin, safeXMax)
+  const randomY = getRandomNumberInRange(safeYMin, safeYMax)
 
   // 4. Optionally simulate moving the mouse to this new location first
   // (adds realism before the wheel actually spins)

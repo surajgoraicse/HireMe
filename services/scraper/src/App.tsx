@@ -5,9 +5,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Button } from "./components/ui/button"
 import { loadConfig } from "./lib/config"
 
 export const config = loadConfig()
+
+async function scrapeLinkedinInfiniteSearchFeed() {
+  try {
+    console.log("Scraping linkedin infinite search feed")
+    const res = await chrome.runtime.sendMessage({
+      action: "SCRAPE_LINKEDIN_INFINITE_SEARCH_FEED",
+      keyword: "software engineer",
+      maxDepthPx: 40000,
+    })
+    console.log("Scraping linkedin infinite search feed result", res)
+  } catch (error) {
+    console.log("Error scraping linkedin infinite search feed", error)
+  }
+}
 
 function App() {
   return (
@@ -19,7 +34,9 @@ function App() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        Your design system is ready. Start building your next component.
+        <Button onClick={scrapeLinkedinInfiniteSearchFeed}>
+          Scrape Linkedin Infinite Search Feed
+        </Button>
       </CardContent>
     </Card>
   )
