@@ -21,15 +21,18 @@ const timeFilterMap = {
   "1M": `["past-month"]`,
 }
 
+/**
+ * Returns the search URL for the given search keyword and time filter
+ * @param searchKeyword - The keyword to search for
+ * @param timeFilter - The time filter to use
+ * @returns The search URL
+ */
 function getSearchUrl(searchKeyword: string, timeFilter: TimeFilter) {
   const searchUrl = baseUrl
-  searchUrl.searchParams.set("keywords", encodeURIComponent(searchKeyword))
+  searchUrl.searchParams.set("keywords", searchKeyword)
   searchUrl.searchParams.set("origin", "SWITCH_SEARCH_VERTICAL")
   if (timeFilter !== "default") {
-    searchUrl.searchParams.set(
-      "datePosted",
-      encodeURIComponent(timeFilterMap[timeFilter])
-    )
+    searchUrl.searchParams.set("datePosted", timeFilterMap[timeFilter])
     searchUrl.searchParams.set("origin", "FACETED_SEARCH")
   }
   return searchUrl.href
@@ -37,6 +40,12 @@ function getSearchUrl(searchKeyword: string, timeFilter: TimeFilter) {
 
 /**
  * Main function that executes the hybrid scraping strategy using chrome.debugger
+ * @param tabId - The ID of the tab to scrape
+ * @param searchKeyword - The keyword to search for
+ * @param timeFilter - The time filter to use
+ * @param config - The configuration for the scraper
+ * @param maxDepthPx - The maximum depth to scrape in pixels
+ * @returns The scraped data
  */
 export async function scrapeInfiniteSearchFeedLinkedin(
   tabId: number,
