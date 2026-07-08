@@ -5,6 +5,9 @@ import { getScrollableContainerBounds } from "./getInfiniteScrollableContainer"
  * Simulates a hardware-level mouse wheel scroll directly over the active feed container.
  * It uses getScrollableContainerBounds to find the scrollable container and then
  * scrolls within that container.
+ * 
+ * @param target chrome.debugger.Debuggee instance
+ * @param scrollAmount number - Amount to scroll
  */
 export async function mouseScroll(
   target: chrome.debugger.Debuggee,

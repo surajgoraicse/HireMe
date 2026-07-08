@@ -11,6 +11,7 @@ import {
   waitForInfinitePageLoadDuringScroll,
   waitForNetworkIdle,
 } from "../helper-scripts/waitForNetworkIdle"
+import logger from "../logger"
 
 const baseUrl = new URL("https://www.linkedin.com/search/results/content/")
 const timeFilterMap = {
@@ -58,13 +59,17 @@ export async function scrapeInfiniteSearchFeedLinkedin(
       url: searchUrl,
     })
 
-    console.log("Waiting for network idle...")
+    logger.info(
+      "[scrapeInfiniteSearchFeedLinkedin] : Waiting for network idle..."
+    )
     await waitForNetworkIdle({
       tabId: tabId,
-      idleTime: 500, // Wait for 1 second of total silence
+      idleTime: 500, // Wait for 0.5 second of total silence
       timeout: 10000, // Give up if 10 seconds pass
     })
-    console.log("Network is idle. Ready to simulate scrolling.")
+    logger.info(
+      "[scrapeInfiniteSearchFeedLinkedin] : Network is idle. Ready to simulate scrolling."
+    )
 
     // 3. Human-Simulated Scrolling & Interaction loop
     let currentDepth = 0
@@ -104,9 +109,13 @@ export async function scrapeInfiniteSearchFeedLinkedin(
       // Decoy action: Randomly scroll up slightly
       // Example: A user scrolling past a post, realizing it was interesting, and scrolling slightly back up.
       if (Math.random() > 0.8) {
+        logger.info(
+          `[scrapeInfiniteSearchFeedLinkedin] : Decoy action: Scrolling up`
+        )
         await mouseScroll(
           target,
-          getRandomNumberInRange(config.minDecoyScroll, config.maxDecoyScroll)
+          -1 *
+            getRandomNumberInRange(config.minDecoyScroll, config.maxDecoyScroll)
         )
         await sleep(
           config.minInfiniteDecoyScrollSleep,
@@ -123,11 +132,19 @@ export async function scrapeInfiniteSearchFeedLinkedin(
     // 5. Stream to S3 Storage
     await uploadToS3(rawHtml, searchKeyword)
 
-    console.log("Scraping task completed successfully.")
+    logger.info(
+      "[scrapeInfiniteSearchFeedLinkedin] : Scraping task completed successfully."
+    )
   } catch (error) {
-    console.error("Debugger execution failed:", error)
+    logger.error(
+      "[scrapeInfiniteSearchFeedLinkedin] : Debugger execution failed:",
+      error
+    )
   } finally {
     // It is critical to detach the debugger to free up browser memory and reset tab state.
     await chrome.debugger.detach(target)
+    logger.info(
+      "[scrapeInfiniteSearchFeedLinkedin] : Debugger detached from the target tab."
+    )
   }
 }

@@ -1,5 +1,6 @@
 // lib/mouse-simulator.ts
 
+import logger from "../logger"
 import { sleep } from "../utils"
 
 /**
@@ -57,12 +58,19 @@ function generateBezierPath(
 
 /**
  * Simulates a human moving the mouse to trace text while reading.
+ * @param target chrome.debugger.Debuggee instance
+ * @param startX number - Starting X coordinate of the mouse in viewport
+ * @param startY number - Starting Y coordinate of the mouse in viewport
  */
 export async function simulateHumanMovement(
   target: chrome.debugger.Debuggee,
   startX: number,
   startY: number
 ) {
+  logger.info(
+    `[simulateHumanMovement ${Date.now().toLocaleString()}] : Simulating human movement from (${startX}, ${startY})`
+  )
+
   // A human reading might move left to right, down a few lines, and pause.
   // Example: Reading a paragraph consisting of 2 to 4 lines.
   const readingLines = Math.floor(Math.random() * 3) + 2
@@ -126,4 +134,5 @@ export async function simulateHumanMovement(
       await sleep(200, 600)
     }
   }
+  logger.info("[simulateHumanMovement] : Human movement simulation completed")
 }

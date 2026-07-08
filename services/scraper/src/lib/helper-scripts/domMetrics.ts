@@ -1,4 +1,4 @@
-// src/lib/dom-metrics.ts
+import logger from "../logger"
 
 export interface ScrollMetrics {
   scrollHeight: number
@@ -13,6 +13,7 @@ export interface ScrollMetrics {
 export async function getScrollMetrics(
   target: chrome.debugger.Debuggee
 ): Promise<ScrollMetrics> {
+  logger.info("[getScrollMetrics] : Getting scroll metrics")
   // We write the JavaScript expression as a string to be evaluated in the page.
   // We check both documentElement and body to ensure cross-browser compatibility.
   const expression = `
@@ -47,5 +48,6 @@ export async function getScrollMetrics(
     }
   )) as any
 
+  logger.info("[getScrollMetrics] : Scroll metrics retrieved : ", result.value)
   return result.value as ScrollMetrics
 }

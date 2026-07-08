@@ -1,4 +1,5 @@
 import type { Config } from "../config"
+import logger from "../logger"
 import { sleep } from "../utils"
 
 /**
@@ -8,11 +9,13 @@ import { sleep } from "../utils"
  */
 export function infiniteScrollSleep(config: Config) {
   if (Math.random() < 0.7) {
+    logger.info(`[infiniteScrollSleep] : Short sleep`)
     return sleep(
       config.minInfiniteScrollShortSleep,
       config.maxInfiniteScrollShortSleep
     )
   } else {
+    logger.info(`[infiniteScrollSleep] : Long sleep`)
     return sleep(
       config.minInfiniteScrollLongSleep,
       config.maxInfiniteScrollLongSleep

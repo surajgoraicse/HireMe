@@ -23,3 +23,7 @@ export function getSafeViewports(): [number, number] {
     500 + getRandomNumberInRange(-100, 100),
   ]
 }
+
+export function getTimeStamp(): string {
+  return new Date().toLocaleString()
+}

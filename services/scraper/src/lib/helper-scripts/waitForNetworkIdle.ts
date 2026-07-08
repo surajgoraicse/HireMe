@@ -1,7 +1,9 @@
 // src/lib/network.ts
 
 import { IgnoreNetworkIdleUrls } from "@/lib/constants"
+import logger from "../logger"
 import { type ScrollMetrics } from "./domMetrics"
+import { mouseScroll } from "./mouseScroll"
 
 export interface NetworkIdleOptions {
   tabId: number
@@ -114,6 +116,14 @@ export async function waitForNetworkIdle({
   })
 }
 
+/**
+ *
+ * @param target chrome.debugger.Debuggee instance
+ * @param metrics ScrollMetrics object
+ * @param minRemainingSpace number - Minimum remaining space in the DOM to scroll
+ * @param waitingTimeout number - Maximum time to wait for the network to be idle
+ */
+
 export async function waitForInfinitePageLoadDuringScroll(
   target: chrome.debugger.Debuggee,
   metrics: ScrollMetrics,
@@ -125,19 +135,23 @@ export async function waitForInfinitePageLoadDuringScroll(
   // Example: If we have less than 800px of scrollable space left,
   // it means we are near the bottom. LinkedIn's infinite scroll should be triggering.
   if (metrics.remainingSpace < minRemainingSpace) {
-    console.log(
-      "Approaching the bottom of the rendered DOM. Waiting for hydration..."
+    logger.info(
+      "[waitForInfinitePageLoadDuringScroll] : Approaching the bottom of the rendered DOM. Waiting for hydration..."
     )
 
     // We wait for the network to fetch the next batch of posts and the DOM to update
     try {
+      await mouseScroll(target, 0.6 * metrics.clientHeight)
       await waitForNetworkIdle({
         tabId: target.tabId!,
         timeout: waitingTimeout,
       })
+      logger.info(
+        "[waitForInfinitePageLoadDuringScroll] : Hydration complete. Continuing scroll."
+      )
     } catch (e) {
-      console.warn(
-        "Hydration timeout or network remained noisy, continuing anyway."
+      logger.warn(
+        "[waitForInfinitePageLoadDuringScroll] : Hydration timeout or network remained noisy, continuing anyway."
       )
     }
   }
